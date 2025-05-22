@@ -114,23 +114,25 @@ class MainActivity : ComponentActivity() {
         onClick =
           {
             val res =
-              vpnApiService.getNewClientConfig().enqueue(object : Callback<WGConfig> {
-                override fun onResponse(
-                  call: Call<WGConfig?>,
-                  response: Response<WGConfig?>
-                ) {
-                  Log.d("hoot-net", response.body().toString())
+              lifecycleScope.launch {
+                vpnApiService.getNewClientConfig().enqueue(object : Callback<WGConfig> {
+                  override fun onResponse(
+                    call: Call<WGConfig?>,
+                    response: Response<WGConfig?>
+                  ) {
+                    Log.d("hoot-net", response.body().toString())
 
-                }
+                  }
 
-                override fun onFailure(
-                  call: Call<WGConfig?>,
-                  t: Throwable
-                ) {
-                  Log.d("hoot-net", t.message.toString().toString())
-                }
+                  override fun onFailure(
+                    call: Call<WGConfig?>,
+                    t: Throwable
+                  ) {
+                    Log.d("hoot-net", t.message.toString().toString())
+                  }
 
-              })
+                })
+              }
           }) {
 
         Text("Get client")

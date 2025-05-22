@@ -13,10 +13,13 @@ data class VPNConfigEntity(
 
 data class WGInterface(
   val privateKey: String,
-  val address: String
+  val address: String,
+  val dns: String
 )
 
 data class WGPeer(
   val publicKey: String,
-  val endpoint: String
+  val endpoint: String,
+  val allowedIPs: String,
+  val persistentKeepalive: Int
 )

@@ -1,6 +1,5 @@
 package com.example.hoot_net.data.remote
 
-import javax.inject.Inject
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 

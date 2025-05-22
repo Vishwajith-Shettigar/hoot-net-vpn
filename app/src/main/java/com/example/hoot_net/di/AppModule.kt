@@ -31,5 +31,9 @@ abstract class AppModule {
     fun provideApiClient(): ApiClient {
       return ApiClient()
     }
+
+    @Provides
+    @Singleton
+    fun provideVPNConfigDao(database: AppDatabase) = database.vpnConfigDao()
   }
 }

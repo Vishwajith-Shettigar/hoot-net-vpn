@@ -5,5 +5,5 @@ import retrofit2.http.GET
 
 interface VPNApiService {
   @GET("new-client")
-  fun getNewClientConfig(): Call<WGConfig>
+  suspend fun getNewClientConfig(): Call<WGConfig>
 }
