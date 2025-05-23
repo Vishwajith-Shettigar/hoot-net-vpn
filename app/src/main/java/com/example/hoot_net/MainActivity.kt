@@ -1,8 +1,8 @@
 package com.example.hoot_net
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -15,12 +15,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.lifecycleScope
+import com.example.hoot_net.data.RegionManager
 import com.example.hoot_net.data.remote.ApiClient
 import com.example.hoot_net.data.remote.VPNApiService
-import com.example.hoot_net.data.remote.WGConfig
 import com.example.hoot_net.ui.theme.HootnetTheme
+import com.wireguard.android.backend.BackendException
+import com.wireguard.android.backend.BackendException.Reason.UNABLE_TO_START_VPN
 import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.config.Config
@@ -28,14 +29,12 @@ import com.wireguard.config.InetEndpoint
 import com.wireguard.config.InetNetwork
 import com.wireguard.config.Interface
 import com.wireguard.config.Peer
-import dagger.hilt.EntryPoint
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import retrofit2.awaitResponse
+import kotlinx.coroutines.withContext
 
 
 @AndroidEntryPoint
@@ -44,14 +43,19 @@ class MainActivity : ComponentActivity() {
   @Inject
   lateinit var apiClient: ApiClient
 
-  lateinit var tunnel: WgTunnel
+  @Inject
+  lateinit var regionManager: RegionManager
+
   val backend = GoBackend(this)
+
+  lateinit var tunnel: WgTunnel
+
   lateinit var vpnApiService: VPNApiService
 
   override fun onCreate(savedInstanceState: Bundle?) {
-    tunnel = WgTunnel()
-    super.onCreate(savedInstanceState)
 
+    super.onCreate(savedInstanceState)
+    tunnel = WgTunnel()
     vpnApiService = apiClient.getClient(BuildConfig.BASE_URL)
     enableEdgeToEdge()
     setContent {
@@ -63,76 +67,94 @@ class MainActivity : ComponentActivity() {
     }
   }
 
-  fun connect() {
-    val intentPrepare = GoBackend.VpnService.prepare(this)
-    if (intentPrepare != null)
-      startActivityForResult(intentPrepare, 0)
+  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    if (requestCode == 100 && resultCode == RESULT_OK) {
+      connect()
+    }
+  }
 
+  fun requestVpnPermission() {
+    val intentPrepare = GoBackend.VpnService.prepare(this)
+    if (intentPrepare != null) {
+      startActivityForResult(intentPrepare, 100)
+    } else {
+      connect()
+    }
+  }
+
+
+  fun connect() {
     val interfaceBuilder = Interface.Builder()
     val peerBuilder = Peer.Builder()
 
-
     lifecycleScope.launch {
-      try {
-        if (backend.getState(tunnel) == Tunnel.State.UP) {
-          Log.d("hoot-net", "Down")
+      repeat(5) { attempt ->
+        try {
+          if (backend.getState(tunnel) == Tunnel.State.UP) {
+            Log.d("hoot-net", "Tunnel already UP. Tearing down...")
+            backend.setState(tunnel, Tunnel.State.DOWN, null)
+          } else {
+            Log.d("hoot-net", "Attempting to bring tunnel UP (try ${attempt + 1})")
 
-          backend.setState(tunnel, Tunnel.State.DOWN, null)
-        } else {
-          Log.d("hoot-net", "Up")
+            backend.setState(
+              tunnel, Tunnel.State.UP, Config.Builder()
+                .setInterface(
+                  interfaceBuilder
+                    .addAddress(InetNetwork.parse("10.200.200.2/24"))
+                    .parsePrivateKey(BuildConfig.TEMP_PRIVATE_KEY.toString())
+                    .build()
+                )
+                .addPeer(
+                  peerBuilder
+                    .addAllowedIp(InetNetwork.parse("0.0.0.0/0"))
+                    .setEndpoint(InetEndpoint.parse(BuildConfig.END_POINT.toString()))
+                    .parsePublicKey(BuildConfig.TEMP_PUBLIC_KEY.toString())
+                    .build()
+                )
+                .build()
+            )
+          }
 
-          backend.setState(
-            tunnel, Tunnel.State.UP, Config.Builder()
-              .setInterface(
-                interfaceBuilder.addAddress(InetNetwork.parse("10.200.200.2/24"))
-                  .parsePrivateKey(BuildConfig.TEMP_PRIVATE_KEY)
-                  .build()
-              ).addPeer(
-                peerBuilder.addAllowedIp(InetNetwork.parse("0.0.0.0/0")).setEndpoint(
-                  InetEndpoint.parse("${BuildConfig.BASE_URL}:51820")
-                ).parsePublicKey(BuildConfig.TEMP_PUBLIC_KEY).build()
-              )
-              .build()
-          )
+          return@launch
+
+        } catch (e: BackendException) {
+          Log.d("hoot-net", "Error: ${e.reason}")
+          if (e.reason == BackendException.Reason.UNABLE_TO_START_VPN) {
+            val delayMillis = 1000L * (attempt + 1)
+            Log.d("hoot-net", "Retrying in ${delayMillis}ms...")
+            delay(delayMillis)
+          } else {
+          }
         }
-      } catch (e: Exception) {
-        Log.d("hoot-net", e.message.toString())
       }
-    }
 
+      Log.e("hoot-net", "Failed to start VPN after 5 attempts")
+    }
   }
+
 
   @Composable
   fun ConnectButton(modifier: Modifier = Modifier) {
 
     Box(modifier = modifier.fillMaxSize()) {
-      Button(modifier = Modifier.align(Alignment.Center), onClick = { connect() }) {
+      Button(modifier = Modifier.align(Alignment.Center), onClick = { requestVpnPermission() }) {
         Text(text = "Connect")
       }
 
       Button(
         onClick =
           {
-            val res =
-              lifecycleScope.launch {
-                vpnApiService.getNewClientConfig().enqueue(object : Callback<WGConfig> {
-                  override fun onResponse(
-                    call: Call<WGConfig?>,
-                    response: Response<WGConfig?>
-                  ) {
-                    Log.d("hoot-net", response.body().toString())
+            Log.d("hoot-net", "hello")
 
-                  }
 
-                  override fun onFailure(
-                    call: Call<WGConfig?>,
-                    t: Throwable
-                  ) {
-                    Log.d("hoot-net", t.message.toString().toString())
-                  }
+            lifecycleScope.launch(Dispatchers.IO) {
 
-                })
-              }
+              val res =
+                regionManager.getClientConfig("South-mumbai", BuildConfig.BASE_URL.toString())
+//              val res= apiClient.getClient(BuildConfig.BASE_URL).getNewClientConfig()
+              Log.d("hoot-net", res.toString())
+            }
           }) {
 
         Text("Get client")
@@ -140,7 +162,7 @@ class MainActivity : ComponentActivity() {
       }
 
       Button(modifier = Modifier.align(Alignment.BottomCenter), onClick = {
-        backend.setState(tunnel, Tunnel.State.DOWN, null)
+
       }) {
         Text(text = "Disconnect")
       }
