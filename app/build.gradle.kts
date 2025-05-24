@@ -10,6 +10,8 @@ plugins {
 
 }
 
+
+
 android {
   namespace = "com.example.hoot_net"
   compileSdk = 35
@@ -90,6 +92,8 @@ dependencies {
   implementation(libs.androidx.room.ktx)
   ksp("androidx.room:room-compiler:$room_version")
   implementation(libs.gson)
+
+  implementation("com.airbnb.android:lottie-compose:6.3.0")
 
 
 }

@@ -1,9 +1,9 @@
 import java.io.FileInputStream
 import java.util.Properties
+import org.gradle.kotlin.dsl.repositories
 
 pluginManagement {
   repositories {
-
     google()
     gradlePluginPortal()
     mavenCentral()

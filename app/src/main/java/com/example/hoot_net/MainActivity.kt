@@ -19,6 +19,8 @@ import androidx.lifecycle.lifecycleScope
 import com.example.hoot_net.data.RegionManager
 import com.example.hoot_net.data.remote.ApiClient
 import com.example.hoot_net.data.remote.VPNApiService
+import com.example.hoot_net.screens.MainScreen
+import com.example.hoot_net.screens.SplashScreen
 import com.example.hoot_net.ui.theme.HootnetTheme
 import com.wireguard.android.backend.BackendException
 import com.wireguard.android.backend.BackendException.Reason.UNABLE_TO_START_VPN
@@ -61,8 +63,11 @@ class MainActivity : ComponentActivity() {
     setContent {
       HootnetTheme {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-          ConnectButton(modifier = Modifier.padding(innerPadding))
+//          ConnectButton(modifier = Modifier.padding(innerPadding))
+          SplashScreen()
+          MainScreen(Modifier.padding(innerPadding))
         }
+
       }
     }
   }
@@ -170,6 +175,8 @@ class MainActivity : ComponentActivity() {
 
   }
 }
+
+
 
 
 
