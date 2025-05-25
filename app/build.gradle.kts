@@ -95,5 +95,13 @@ dependencies {
 
   implementation("com.airbnb.android:lottie-compose:6.3.0")
 
+  implementation("io.coil-kt.coil3:coil-compose:3.2.0")
+  implementation("io.coil-kt.coil3:coil-network-okhttp:3.2.0")
+
+  implementation("androidx.activity:activity-ktx:1.9.0")
+
+  implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+
+
 
 }
