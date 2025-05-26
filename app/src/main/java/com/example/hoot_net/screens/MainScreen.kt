@@ -1,5 +1,9 @@
 package com.example.hoot_net.screens
 
+import android.app.Activity
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -25,13 +29,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +54,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInteropFilter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -55,12 +64,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
+import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.example.hoot_net.R
+import com.example.hoot_net.WgTunnel
+import com.example.hoot_net.data.Region
+import com.example.hoot_net.data.getRegions
 import com.example.hoot_net.ui.theme.cherryBomb
 import com.example.hoot_net.viewmodel.MainViewModel
 import com.example.hoot_net.viewmodel.Status
+import com.wireguard.android.backend.Backend
+import com.wireguard.android.backend.GoBackend
+import com.wireguard.android.backend.GoBackend.VpnService
 import dagger.hilt.android.lifecycle.HiltViewModel
 
 val grayscaleColors = listOf(
@@ -75,19 +92,84 @@ val rgbColors = listOf(
   Color.Green
 )
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(modifier: Modifier, viewmodel: MainViewModel = hiltViewModel()) {
+fun MainScreen(
+  modifier: Modifier,
+  viewmodel: MainViewModel = hiltViewModel(),
+  backend: Backend,
+  tunnel: WgTunnel
+) {
   val scope = rememberCoroutineScope()
+
+
+
+
+
+  Log.d("hoot-net", "composition check ")
 
   val uiState by viewmodel.state.collectAsState()
 
-  val waveColors by remember {
-    mutableStateOf<List<Color>>(rgbColors)
+  var waveColors by remember {
+    mutableStateOf<List<Color>>(grayscaleColors)
   }
 
-  val ringColors by remember {
-    mutableStateOf<List<Color>>(rgbColors)
+  var ringColors by remember {
+    mutableStateOf<List<Color>>(grayscaleColors)
+  }
+
+  var selectedRegion by remember {
+    mutableStateOf<Region?>(null)
+  }
+
+  val context = LocalContext.current
+
+  val vpnPermissionLauncher = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.StartActivityForResult()
+  ) { result ->
+    if (result.resultCode == Activity.RESULT_OK) {
+      viewmodel.connect(
+        regionName = selectedRegion!!.name,
+        backend = backend,
+        baseUrl = selectedRegion!!.baseUrl,
+        tunnel = tunnel
+      )
+    }
+  }
+
+  val intentPrepare = VpnService.prepare(context)
+
+  LaunchedEffect(uiState.status) {
+    Log.d("hoot-net", "status")
+    when (uiState.status) {
+      Status.CONNECTED -> {
+        Log.d("hoot-net", " Connected ------------")
+
+        waveColors = rgbColors
+        ringColors = rgbColors
+      }
+
+      Status.DISCONNECTED -> {
+        Log.d("hoot-net", " Dusconnected ------------")
+
+        waveColors = grayscaleColors
+        ringColors = grayscaleColors
+      }
+
+      Status.CONNECTING -> {
+        Log.d("hoot-net", " Connectingggggg ------------")
+
+        waveColors = rgbColors
+        ringColors = grayscaleColors
+      }
+    }
+  }
+
+  LaunchedEffect(uiState.selecetdRegion) {
+    selectedRegion = getRegions().find {
+      it.name == uiState.selecetdRegion
+    }
   }
 
   val bottomSheetState = rememberBottomSheetScaffoldState(
@@ -100,8 +182,10 @@ fun MainScreen(modifier: Modifier, viewmodel: MainViewModel = hiltViewModel()) {
     scaffoldState = bottomSheetState, sheetPeekHeight = 160.dp,
     sheetContainerColor = Color.Blue.copy(0.2f), sheetContent = {
       LazyColumn {
-        items(10) {
-          RegionCard()
+        items(getRegions().size) {
+          RegionCard(getRegions()[it], uiState.selecetdRegion == getRegions()[it].name) {
+            viewmodel.updateSelectedRegion(getRegions()[it].name)
+          }
           Spacer(modifier = Modifier.height(10.dp))
         }
       }
@@ -149,58 +233,76 @@ fun MainScreen(modifier: Modifier, viewmodel: MainViewModel = hiltViewModel()) {
         horizontalAlignment = Alignment.CenterHorizontally
       ) {
         WaveGlowButton(
-          onClick = {},
+          onClick = {
+            if (selectedRegion != null) {
+              if (intentPrepare != null) {
+                vpnPermissionLauncher.launch(intentPrepare)
+              } else {
+                viewmodel.connect(
+                  selectedRegion!!.name,
+                  selectedRegion!!.baseUrl,
+                  backend = backend,
+                  tunnel = tunnel
+                )
+              }
+            }
+          },
           modifier = Modifier,
           waveColors,
           ringColors
         )
       }
-      Column(
-        modifier = Modifier
-          .align(Alignment.BottomCenter)
-          .offset(y = -250.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-      ) {
-        Text(
-          text =
-            when (uiState.status) {
-              Status.CONNECTED ->
-                "Connected"
-              Status.DISCONNECTED -> ""
-              Status.CONNECTING -> "Connecting..."
-            },
-          style = TextStyle(
-            color = Color.Gray,
-            fontWeight = FontWeight.W700
+
+      uiState.selecetdRegion?.let {
+        Column(
+          modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .offset(y = -250.dp),
+          horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+          Text(
+            text =
+              when (uiState.status) {
+                Status.CONNECTED ->
+                  "Connected"
+
+                Status.DISCONNECTED -> ""
+                Status.CONNECTING -> "Connecting..."
+              },
+            style = TextStyle(
+              color = Color.Gray,
+              fontWeight = FontWeight.W700
+            )
           )
-        )
-        Spacer(modifier = Modifier.height(20.dp))
+          Spacer(modifier = Modifier.height(20.dp))
 
-        SelectedRegionCard(ringColors = ringColors)
+          selectedRegion?.let {
+            SelectedRegionCard(ringColors = ringColors, it)
+          }
+
+        }
       }
-
-
-
-//      Column(
-//        horizontalAlignment = Alignment.CenterHorizontally,
-//        modifier = Modifier
-//          .align(Alignment.BottomCenter)
-//          .offset(y = -260.dp),
-//      ) {
-//        Text(
-//          text = "Swipe up to select a region",
-//          color = Color.LightGray
-//        )
-//      }
-//      LottieAnimation(
-//        modifier = Modifier
-//          .size(200.dp)
-//          .align(Alignment.BottomCenter)
-//          .offset(y = -140.dp),
-//        composition = composition,
-//        iterations = LottieConstants.IterateForever,
-//      )
-
+        ?: run {
+          Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+              .align(Alignment.BottomCenter)
+              .offset(y = -260.dp),
+          ) {
+            Text(
+              text = "Swipe up to select a region",
+              color = Color.LightGray
+            )
+          }
+          LottieAnimation(
+            modifier = Modifier
+              .size(200.dp)
+              .align(Alignment.BottomCenter)
+              .offset(y = -140.dp),
+            composition = composition,
+            iterations = LottieConstants.IterateForever,
+          )
+        }
     }
   }
 }
@@ -216,6 +318,7 @@ fun WaveGlowButton(
   var isPressed by remember {
     mutableStateOf(false)
   }
+
 
   val scale by animateFloatAsState(
     targetValue = if (isPressed) 0.92f else 1f,
@@ -306,11 +409,15 @@ fun WaveGlowButton(
               true
             }
 
-            android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+            android.view.MotionEvent.ACTION_UP -> {
               isPressed = false
               onClick()
               true
+            }
 
+            android.view.MotionEvent.ACTION_CANCEL -> {
+              isPressed = false
+              true
             }
 
             else -> false
@@ -326,10 +433,10 @@ fun WaveGlowButton(
   }
 }
 
+
 @OptIn(ExperimentalComposeUiApi::class)
-@Preview(showBackground = true)
 @Composable
-fun RegionCard() {
+fun RegionCard(region: Region, isSelected: Boolean, onClick: () -> Unit) {
   var isPressed by remember {
     mutableStateOf(false)
   }
@@ -355,7 +462,14 @@ fun RegionCard() {
             true
           }
 
-          android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+          android.view.MotionEvent.ACTION_UP -> {
+            isPressed = false
+            if (!region.isLocked)
+              onClick()
+            true
+          }
+
+          android.view.MotionEvent.ACTION_CANCEL -> {
             isPressed = false
             true
 
@@ -368,7 +482,13 @@ fun RegionCard() {
       .padding(horizontal = 10.dp)
       .clip(shape = RoundedCornerShape(40.dp))
       .background(color = Color.Black.copy(alpha = 0.3f))
-//      .border(width = 1.dp, color = Color.White, shape = RoundedCornerShape(40.dp))
+      .then(
+        if (isSelected)
+          Modifier.border(width = 1.dp, color = Color.White, shape = RoundedCornerShape(40.dp))
+        else
+          Modifier
+
+      )
       .padding(horizontal = 20.dp)
   ) {
     Box(
@@ -376,16 +496,15 @@ fun RegionCard() {
         .size(50.dp)
         .weight(0.2f)
     ) {
-      Image(
+      AsyncImage(
         modifier = Modifier.align(Alignment.CenterStart),
-        painter = painterResource(R.drawable.`in`), contentDescription = "",
-
-        )
+        model = region.iconUrl, contentDescription = "",
+      )
     }
 
     Column(modifier = Modifier.weight(0.6f), horizontalAlignment = Alignment.Start) {
       Text(
-        text = "South Mumbai", style = TextStyle.Default.copy(
+        text = region.name, style = TextStyle.Default.copy(
           fontWeight = FontWeight.ExtraBold,
           color = Color.White
         ),
@@ -393,27 +512,40 @@ fun RegionCard() {
       )
       Spacer(modifier = Modifier.height(7.dp))
       Text(
-        text = "In", style = TextStyle.Default.copy(
+        text = region.country, style = TextStyle.Default.copy(
           fontWeight = FontWeight.Bold,
           color = Color.White
         )
       )
     }
-    Image(
-      painter = painterResource(R.drawable.secured),
-      modifier = Modifier
-        .weight(0.2f)
-        .size(35.dp),
-      contentDescription = ""
-    )
+    if (region.isLocked)
+      Icon(
+        imageVector = Icons.Default.Lock,
+        modifier = Modifier
+          .weight(0.2f)
+          .size(35.dp), contentDescription = ""
+      )
+    else
+      Image(
+        painter = painterResource(R.drawable.secured),
+        modifier = Modifier
+          .weight(0.2f)
+          .size(35.dp),
+        contentDescription = ""
+      )
   }
 }
 
 
+fun getRegion(regionName: String): Region {
+  return getRegions().find {
+    it.name == regionName
+  }!!
+}
+
 @OptIn(ExperimentalComposeUiApi::class)
-@Preview(showBackground = true)
 @Composable
-fun SelectedRegionCard(ringColors: List<Color> = listOf()) {
+fun SelectedRegionCard(ringColors: List<Color> = listOf(), selectedRegion: Region) {
 
   Row(
     verticalAlignment = Alignment.CenterVertically,
@@ -440,7 +572,7 @@ fun SelectedRegionCard(ringColors: List<Color> = listOf()) {
     ) {
       AsyncImage(
         modifier = Modifier.align(Alignment.CenterStart),
-        model = "https://firebasestorage.googleapis.com/v0/b/time-capsule-android.appspot.com/o/vpn-country-flags%2Fin.png?alt=media&token=0198b537-0b1a-4e95-8e8a-0ff7c93fc826",
+        model = selectedRegion.iconUrl,
         contentDescription = "",
 
         )
@@ -448,7 +580,7 @@ fun SelectedRegionCard(ringColors: List<Color> = listOf()) {
 
     Column(modifier = Modifier.weight(0.6f), horizontalAlignment = Alignment.Start) {
       Text(
-        text = "South Mumbai", style = TextStyle.Default.copy(
+        text = selectedRegion.name, style = TextStyle.Default.copy(
           fontWeight = FontWeight.ExtraBold,
           color = Color.Black
         ),
@@ -456,7 +588,7 @@ fun SelectedRegionCard(ringColors: List<Color> = listOf()) {
       )
       Spacer(modifier = Modifier.height(7.dp))
       Text(
-        text = "In", style = TextStyle.Default.copy(
+        text = selectedRegion.country, style = TextStyle.Default.copy(
           fontWeight = FontWeight.Bold,
           color = Color.Black
         ),

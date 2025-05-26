@@ -69,7 +69,7 @@ class MainActivity : ComponentActivity() {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
 //          ConnectButton(modifier = Modifier.padding(innerPadding))
           SplashScreen()
-          MainScreen(Modifier.padding(innerPadding))
+          MainScreen(modifier = Modifier.padding(innerPadding),backend=backend,tunnel=tunnel)
         }
       }
     }
@@ -82,51 +82,44 @@ class MainActivity : ComponentActivity() {
     }
   }
 
-  fun requestVpnPermission() {
-    val intentPrepare = GoBackend.VpnService.prepare(this)
-    if (intentPrepare != null) {
-      startActivityForResult(intentPrepare, 100)
-    } else {
-//      connect()
-    }
-  }
 
 
-  @Composable
-  fun ConnectButton(modifier: Modifier = Modifier) {
 
-    Box(modifier = modifier.fillMaxSize()) {
-      Button(modifier = Modifier.align(Alignment.Center), onClick = { requestVpnPermission() }) {
-        Text(text = "Connect")
-      }
-
-      Button(
-        onClick =
-          {
-            Log.d("hoot-net", "hello")
-
-
-            lifecycleScope.launch(Dispatchers.IO) {
-
-              val res =
-                regionManager.getClientConfig("South-mumbai", BuildConfig.BASE_URL.toString())
-//              val res= apiClient.getClient(BuildConfig.BASE_URL).getNewClientConfig()
-              Log.d("hoot-net", res.toString())
-            }
-          }) {
-
-        Text("Get client")
-
-      }
-
-      Button(modifier = Modifier.align(Alignment.BottomCenter), onClick = {
-
-      }) {
-        Text(text = "Disconnect")
-      }
-    }
-
-  }
+//  @Composable
+//  fun ConnectButton(modifier: Modifier = Modifier) {
+//
+//    Box(modifier = modifier.fillMaxSize()) {
+//      Button(modifier = Modifier.align(Alignment.Center), onClick = { requestVpnPermission() }) {
+//        Text(text = "Connect")
+//      }
+//
+//      Button(
+//        onClick =
+//          {
+//            Log.d("hoot-net", "hello")
+//
+//
+//            lifecycleScope.launch(Dispatchers.IO) {
+//
+//              val res =
+//                regionManager.getClientConfig("South-mumbai", BuildConfig.BASE_URL.toString())
+////              val res= apiClient.getClient(BuildConfig.BASE_URL).getNewClientConfig()
+//              Log.d("hoot-net", res.toString())
+//            }
+//          }) {
+//
+//        Text("Get client")
+//
+//      }
+//
+//      Button(modifier = Modifier.align(Alignment.BottomCenter), onClick = {
+//
+//      }) {
+//        Text(text = "Disconnect")
+//      }
+//    }
+//
+//  }
 }
 
 

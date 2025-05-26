@@ -22,12 +22,15 @@ import com.wireguard.config.Interface
 import com.wireguard.config.Peer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import jakarta.inject.Inject
+import java.net.InetAddress
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class Status {
   CONNECTED,
@@ -49,18 +52,30 @@ class MainViewModel @Inject constructor(
   private val _state: MutableStateFlow<UIState> = MutableStateFlow(UIState())
   val state: StateFlow<UIState> = _state.asStateFlow()
 
-  fun connect(regionName: String, baseUrl: String, backend: Backend, tunnel: WgTunnel) {
+  fun updateSelectedRegion(regionName: String) {
     _state.update {
-      it.copy(status = Status.CONNECTING)
+      it.copy(selecetdRegion = regionName)
     }
+  }
 
-    viewModelScope.launch {
+  fun connect(regionName: String, baseUrl: String, backend: Backend, tunnel: WgTunnel) {
+
+    if (_state.value.status != Status.CONNECTED)
+      _state.update {
+        it.copy(status = Status.CONNECTING)
+      }
+
+    viewModelScope.launch(Dispatchers.IO) {
+
       val res = regionManager.getClientConfig(regionName = regionName, baseUrl = baseUrl)
       when (res) {
         is HootResponse.Error -> {
+          Log.d("hoot-net", "error")
+
         }
 
         is HootResponse.Success<WGConfig?> -> {
+          Log.d("hoot-net", "Success")
 
           if (res.data != null) {
             connectWireguard(backend = backend, tunnel = tunnel, wgConfig = res.data)
@@ -79,13 +94,21 @@ class MainViewModel @Inject constructor(
   fun connectWireguard(backend: Backend, tunnel: WgTunnel, wgConfig: WGConfig) {
     val interfaceBuilder = Interface.Builder()
     val peerBuilder = Peer.Builder()
+    Log.d("hoot-net", wgConfig.toString())
 
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO) {
       repeat(5) { attempt ->
         try {
           if (backend.getState(tunnel) == Tunnel.State.UP) {
             Log.d("hoot-net", "Tunnel already UP. Tearing down...")
             backend.setState(tunnel, Tunnel.State.DOWN, null)
+            withContext(Dispatchers.Main) {
+              _state.update {
+                it.copy(status = Status.DISCONNECTED)
+              }
+
+            }
+
           } else {
             Log.d("hoot-net", "Attempting to bring tunnel UP (try ${attempt + 1})")
 
@@ -102,14 +125,16 @@ class MainViewModel @Inject constructor(
                     .addAllowedIp(InetNetwork.parse("0.0.0.0/0"))
                     .setEndpoint(InetEndpoint.parse(wgConfig.peer.endpoint))
                     .parsePublicKey(wgConfig.peer.publicKey)
+                    .setPersistentKeepalive(25)
                     .build()
                 )
                 .build()
             )
-          }
-
-          _state.update {
-            it.copy(status = Status.CONNECTED)
+            withContext(Dispatchers.Main) {
+              _state.update {
+                it.copy(status = Status.CONNECTED)
+              }
+            }
           }
 
           return@launch
@@ -129,7 +154,7 @@ class MainViewModel @Inject constructor(
     }
   }
 
-  fun getSelectedRegionDetails(){
+  fun getSelectedRegionDetails() {
 
   }
 

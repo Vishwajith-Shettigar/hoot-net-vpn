@@ -21,12 +21,15 @@ class RegionManager @Inject constructor(
   suspend fun getClientConfig(regionName: String, baseUrl: String): HootResponse<WGConfig?> {
     return try {
       val localConfig = vpnConfigDao.getConfig(regionName)
+      Log.d("hoot-net", "yoyo")
+
       if (localConfig != null) {
         Log.d("hoot-net", localConfig.toString())
         // Convert DB entity to WGConfig
         return HootResponse.Success(convertEntityToWGConfig(localConfig))
 
       }
+      Log.d("hoot-net", "no local")
 
       val client = apiClient.getClient(baseUrl)
       val remoteConfigResponse = client.getNewClientConfig()
@@ -40,6 +43,7 @@ class RegionManager @Inject constructor(
       }
       HootResponse.Error(message = remoteConfigResponse.message())
     } catch (e: Exception) {
+      Log.d("hoot-net", e.toString())
       e.printStackTrace()
       HootResponse.Error(exception = e)
     }
