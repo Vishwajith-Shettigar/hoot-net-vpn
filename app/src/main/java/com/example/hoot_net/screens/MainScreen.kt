@@ -26,11 +26,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -49,19 +51,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInteropFilter
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.airbnb.lottie.compose.LottieAnimation
@@ -76,9 +87,7 @@ import com.example.hoot_net.ui.theme.cherryBomb
 import com.example.hoot_net.viewmodel.MainViewModel
 import com.example.hoot_net.viewmodel.Status
 import com.wireguard.android.backend.Backend
-import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.backend.GoBackend.VpnService
-import dagger.hilt.android.lifecycle.HiltViewModel
 
 val grayscaleColors = listOf(
   Color.Gray,
@@ -92,7 +101,6 @@ val rgbColors = listOf(
   Color.Green
 )
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
@@ -102,10 +110,6 @@ fun MainScreen(
   tunnel: WgTunnel
 ) {
   val scope = rememberCoroutineScope()
-
-
-
-
 
   Log.d("hoot-net", "composition check ")
 
@@ -166,9 +170,23 @@ fun MainScreen(
     }
   }
 
+  var showDisconnectDialog by remember {
+    mutableStateOf(false)
+  }
+
   LaunchedEffect(uiState.selecetdRegion) {
     selectedRegion = getRegions().find {
       it.name == uiState.selecetdRegion
+    }
+  }
+
+
+  if (showDisconnectDialog) {
+    CustomDialog(isDiconnectDialog = true, positiveClick = {
+      // Disconnnect
+
+    }) {
+      showDisconnectDialog = false
     }
   }
 
@@ -234,16 +252,20 @@ fun MainScreen(
       ) {
         WaveGlowButton(
           onClick = {
-            if (selectedRegion != null) {
-              if (intentPrepare != null) {
-                vpnPermissionLauncher.launch(intentPrepare)
-              } else {
-                viewmodel.connect(
-                  selectedRegion!!.name,
-                  selectedRegion!!.baseUrl,
-                  backend = backend,
-                  tunnel = tunnel
-                )
+            if (uiState.status == Status.CONNECTED) {
+              showDisconnectDialog = true
+            } else {
+              if (selectedRegion != null) {
+                if (intentPrepare != null) {
+                  vpnPermissionLauncher.launch(intentPrepare)
+                } else {
+                  viewmodel.connect(
+                    selectedRegion!!.name,
+                    selectedRegion!!.baseUrl,
+                    backend = backend,
+                    tunnel = tunnel
+                  )
+                }
               }
             }
           },
@@ -433,10 +455,10 @@ fun WaveGlowButton(
   }
 }
 
-
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun RegionCard(region: Region, isSelected: Boolean, onClick: () -> Unit) {
+
   var isPressed by remember {
     mutableStateOf(false)
   }
@@ -472,7 +494,6 @@ fun RegionCard(region: Region, isSelected: Boolean, onClick: () -> Unit) {
           android.view.MotionEvent.ACTION_CANCEL -> {
             isPressed = false
             true
-
           }
 
           else -> false
@@ -595,6 +616,7 @@ fun SelectedRegionCard(ringColors: List<Color> = listOf(), selectedRegion: Regio
         fontSize = 14.sp
       )
     }
+
     Image(
       painter = painterResource(R.drawable.secured),
       modifier = Modifier
@@ -602,5 +624,251 @@ fun SelectedRegionCard(ringColors: List<Color> = listOf(), selectedRegion: Regio
         .size(35.dp),
       contentDescription = ""
     )
+  }
+}
+
+fun Color.darken(factor: Float = 0.8f): Color {
+  return Color(
+    red = red * factor,
+    green = green * factor,
+    blue = blue * factor,
+    alpha = alpha
+  )
+}
+
+@Composable
+fun CustomDialog(
+  isDiconnectDialog: Boolean,
+  positiveClick: () -> Unit = {},
+  dismiss: () -> Unit = {},
+) {
+
+  var isPressed by remember {
+    mutableStateOf(false)
+  }
+
+  val scale by animateFloatAsState(
+    targetValue = if (isPressed) 0.8f else 1f,
+    animationSpec = tween(100),
+    label = "Press animation"
+  )
+
+  var isPressed2 by remember {
+    mutableStateOf(false)
+  }
+
+
+  val scale2 by animateFloatAsState(
+    targetValue = if (isPressed2) 0.8f else 1f,
+    animationSpec = tween(100),
+    label = "Press animation"
+  )
+
+
+  Dialog(onDismissRequest = {
+    dismiss()
+  }) {
+    Box(
+    ) {
+      Image(
+        painter = painterResource(R.drawable.logo), contentDescription = "",
+        Modifier
+          .size(60.dp)
+          .align(Alignment.TopStart)
+          .zIndex(11f)
+      )
+
+      Box(
+        modifier = Modifier
+          .width(330.dp)
+          .height(150.dp)
+          .shadow(10.dp, shape = RoundedCornerShape(30.dp))
+          .clip(
+            shape = RoundedCornerShape(30.dp)
+          )
+          .background(Color.Red.darken(10f))
+          .padding(20.dp)
+          .border(2.dp, Color.Black, RoundedCornerShape(30.dp))
+          .zIndex(7f)
+      ) {
+
+        Text(
+          text = if (isDiconnectDialog) "Would you like to Disconnect?" else "Hi there! Swipe up to choose a region before proceeding.",
+          modifier = Modifier
+            .align(Alignment.CenterStart)
+            .zIndex(5f)
+            .padding(horizontal = 10.dp),
+          style = TextStyle.Default.copy(color = Color.White, fontWeight = FontWeight.Bold)
+
+        )
+      }
+
+
+      if (isDiconnectDialog)
+        Box(
+          modifier = Modifier
+            .width(90.dp)
+            .height(100.dp)
+            .pointerInteropFilter {
+              when (it.action) {
+
+                android.view.MotionEvent.ACTION_DOWN -> {
+                  isPressed2 = true
+                  true
+                }
+
+                android.view.MotionEvent.ACTION_UP -> {
+                  isPressed2 = false
+                  dismiss()
+                  true
+                }
+
+                android.view.MotionEvent.ACTION_CANCEL -> {
+                  isPressed2 = false
+                  true
+
+                }
+
+                else -> false
+              }
+            }
+            .graphicsLayer {
+              scaleX = scale2
+              scaleY = scale2
+            }
+
+            .offset(x = -20.dp, y = 29.dp)
+            .clip(shape = CircleShape)
+            .background(Color.Blue.darken(4f))
+            .align(Alignment.BottomEnd)
+
+
+        ) {
+          Text(
+            text = "No", modifier = Modifier
+              .align(Alignment.BottomCenter)
+              .offset(y = -10.dp)
+              .zIndex(6f),
+            style = TextStyle.Default.copy(color = Color.White, fontWeight = FontWeight.Bold)
+
+          )
+        }
+
+      Box(
+        modifier = Modifier
+          .width(90.dp)
+          .height(100.dp)
+          .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+          }
+          .pointerInteropFilter {
+            when (it.action) {
+              android.view.MotionEvent.ACTION_DOWN -> {
+                isPressed = true
+                true
+              }
+
+              android.view.MotionEvent.ACTION_UP -> {
+                isPressed = false
+                positiveClick()
+                true
+              }
+
+              android.view.MotionEvent.ACTION_CANCEL -> {
+                isPressed = false
+                true
+
+              }
+
+              else -> false
+            }
+          }
+          .offset(x = 20.dp, y = 29.dp)
+          .clip(shape = CircleShape)
+          .background(Color.DarkGray.darken(1f))
+          .align(Alignment.BottomStart)
+
+
+      ) {
+        Text(
+          text = if (isDiconnectDialog) "Yes" else "Ok", modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .offset(y = -10.dp)
+            .zIndex(6f),
+          style = TextStyle.Default.copy(color = Color.White, fontWeight = FontWeight.Bold)
+
+        )
+      }
+    }
+
+  }
+}
+
+
+@Preview(showBackground = true)
+@Composable
+fun ChatScreen() {
+  var boxWidthPx by remember { mutableStateOf(0f) }
+  val density = LocalDensity.current
+  val offsetX = with(density) { (boxWidthPx).toDp() }
+  val screenWidthDp = LocalConfiguration.current.screenWidthDp.toFloat()
+  val halfScreenWidth = screenWidthDp * 0.5f
+  val w = (screenWidthDp * 0.07).dp
+
+  Box(modifier = Modifier.fillMaxSize()) {
+
+
+    Box(
+      modifier = Modifier
+        .align(Alignment.Center)
+        .size(width = (halfScreenWidth.dp), height = 120.dp),
+    ) {
+      MessageBubble()
+
+      Text(
+        text = "Okay",
+        fontSize = 18.sp,
+        modifier = Modifier
+          .align(Alignment.BottomEnd)
+          .offset(x = -w, y = (-8).dp),
+        color = Color.Black
+      )
+    }
+  }
+}
+
+
+@Composable
+fun MessageBubble(modifier: Modifier = Modifier) {
+  Canvas(modifier = modifier.fillMaxSize()) {
+    val width = size.width
+    val height = size.height
+
+    val bubblePath = Path().apply {
+      val radius = 50f
+
+      // Start from top-left
+      moveTo(radius, 0f)
+      // Top edge
+      lineTo(width - radius, 0f)
+      quadraticBezierTo(width, 0f, width, radius)
+      // Right edge
+      lineTo(width, height - radius * 2)
+      quadraticBezierTo(width, height - radius, width - radius, height - radius)
+      // Bottom bump
+      lineTo(width - 40, height - radius)
+      quadraticBezierTo(width - 120, height + 50f, width * 0.6f, height - radius)
+      // Bottom edge
+      lineTo(radius, height - radius)
+      quadraticBezierTo(0f, height - radius, 0f, height - radius * 2)
+      // Left edge
+      lineTo(0f, radius)
+      quadraticBezierTo(0f, 0f, radius, 0f)
+
+      close()
+    }
+
+    drawPath(path = bubblePath, color = Color(0xFFD01AE9))
   }
 }

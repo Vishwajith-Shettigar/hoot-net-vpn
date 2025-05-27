@@ -102,6 +102,10 @@ dependencies {
 
   implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 
+  implementation ("androidx.graphics:graphics-shapes:1.0.1")
+
+  implementation("androidx.graphics:graphics-path:1.0.1")
+
 
 
 }
