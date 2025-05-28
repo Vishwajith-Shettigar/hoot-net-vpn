@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -29,16 +30,24 @@ import com.example.hoot_net.R
 import com.example.hoot_net.data.local.SharedPreferenceHelper
 import com.example.hoot_net.ui.theme.cherryBomb
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 @Composable
-fun SplashScreen( sharedPreferenceHelper: SharedPreferenceHelper) {
+fun SplashScreen(sharedPreferenceHelper: SharedPreferenceHelper, navigate: () -> Unit) {
 
-
+  val scope = rememberCoroutineScope()
 
   LaunchedEffect(Unit) {
 
     sharedPreferenceHelper.saveIsNewSession(true)
+
+    scope.launch {
+      delay(2000)
+      navigate()
+    }
   }
 
   val composition by rememberLottieComposition(

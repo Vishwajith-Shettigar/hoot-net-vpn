@@ -5,8 +5,8 @@ plugins {
   id("com.google.devtools.ksp")
   id("kotlin-kapt")
   id("com.google.dagger.hilt.android")
-  id ("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
-
+  id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
+  id ("org.jetbrains.kotlin.plugin.serialization")
 
 }
 
@@ -77,15 +77,15 @@ dependencies {
   debugImplementation(libs.androidx.ui.test.manifest)
   implementation("com.wireguard.android:tunnel:1.0.20230706")
 
-  implementation ("com.google.devtools.ksp:symbol-processing-api:2.1.21-2.0.1")
+  implementation("com.google.devtools.ksp:symbol-processing-api:2.1.21-2.0.1")
 
 
   kapt(libs.hilt.android.compiler)
-  implementation(libs.hilt.android )
+  implementation(libs.hilt.android)
 
   implementation(libs.retrofit)
   implementation(libs.gson)
-  implementation ("com.squareup.retrofit2:converter-gson:3.0.0")
+  implementation("com.squareup.retrofit2:converter-gson:3.0.0")
 
   val room_version = "2.6.0"
   implementation(libs.androidx.room.runtime)
@@ -102,10 +102,14 @@ dependencies {
 
   implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 
-  implementation ("androidx.graphics:graphics-shapes:1.0.1")
+  implementation("androidx.graphics:graphics-shapes:1.0.1")
 
   implementation("androidx.graphics:graphics-path:1.0.1")
 
+  implementation("androidx.navigation:navigation-compose:2.8.0")
 
+  implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+
+  implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")
 
 }

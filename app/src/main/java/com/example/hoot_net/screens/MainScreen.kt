@@ -222,8 +222,8 @@ fun MainScreen(
     )
   )
   BottomSheetScaffold(
-    scaffoldState = bottomSheetState, sheetPeekHeight = 160.dp,
-    sheetContainerColor = Color.Blue.copy(0.2f), sheetContent = {
+    scaffoldState = bottomSheetState, sheetPeekHeight = 150.dp,
+    sheetContainerColor = Color.Blue.copy(0.4f), sheetContent = {
       LazyColumn {
         items(getRegions().size) {
           RegionCard(getRegions()[it], uiState.selecetdRegion == getRegions()[it].name) {

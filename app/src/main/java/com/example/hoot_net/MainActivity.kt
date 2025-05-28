@@ -14,10 +14,16 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.NavHost
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.example.hoot_net.data.RegionManager
 import com.example.hoot_net.data.local.SharedPreferenceHelper
 import com.example.hoot_net.data.remote.ApiClient
@@ -26,6 +32,7 @@ import com.example.hoot_net.screens.MainScreen
 import com.example.hoot_net.screens.SplashScreen
 import com.example.hoot_net.ui.theme.HootnetTheme
 import com.example.hoot_net.viewmodel.MainViewModel
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.wireguard.android.backend.BackendException
 import com.wireguard.android.backend.BackendException.Reason.UNABLE_TO_START_VPN
 import com.wireguard.android.backend.GoBackend
@@ -63,17 +70,40 @@ class MainActivity : ComponentActivity() {
   lateinit var vpnApiService: VPNApiService
 
   override fun onCreate(savedInstanceState: Bundle?) {
-
     super.onCreate(savedInstanceState)
     tunnel = WgTunnel()
     vpnApiService = apiClient.getClient(BuildConfig.BASE_URL)
     enableEdgeToEdge()
     setContent {
+      val navController = rememberNavController()
+      val systemUiController = rememberSystemUiController()
+
+      SideEffect {
+        systemUiController.setSystemBarsColor(
+          color = Color.White,
+          darkIcons = true
+        )
+      }
+
       HootnetTheme {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-//          ConnectButton(modifier = Modifier.padding(innerPadding))
-          SplashScreen(sharedPreferenceHelper)
-          MainScreen(modifier = Modifier.padding(innerPadding),backend=backend,tunnel=tunnel)
+          NavHost(navController = navController,
+            startDestination = SplashScreen
+          ) {
+            composable<SplashScreen> {
+              SplashScreen(sharedPreferenceHelper) {
+                navController.navigate(HomeScreen)
+              }
+            }
+            composable<HomeScreen> {
+              MainScreen(
+                modifier = Modifier.padding(innerPadding),
+                backend = backend,
+                tunnel = tunnel
+              )
+
+            }
+          }
         }
       }
     }
@@ -85,8 +115,6 @@ class MainActivity : ComponentActivity() {
 //      connect()
     }
   }
-
-
 
 
 //  @Composable
