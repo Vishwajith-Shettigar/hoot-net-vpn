@@ -2,29 +2,42 @@ package com.example.hoot_net.data.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+val REGION_NAME_KEY="region_name"
+val VPN_CONNECTED_KEY="vpn_status"
+val NEW_SESSION_KEY="new_session"
+
 @Singleton
-class SharedPreferenceHelper @Inject constructor(context: Context) {
+class SharedPreferenceHelper @Inject constructor(@ApplicationContext context: Context) {
 
   private val sharedPreferences: SharedPreferences =
-    context.getSharedPreferences("my_prefs", Context.MODE_PRIVATE)
+    context.getSharedPreferences("hoot-net-prefs", Context.MODE_PRIVATE)
 
-  fun saveRegionName(key: String, value: String) {
-    sharedPreferences.edit().putString(key, value).apply()
+  fun saveRegionName(value: String) {
+    sharedPreferences.edit().putString(REGION_NAME_KEY, value).apply()
   }
 
-  fun getRegionName(key: String, default: String = ""): String {
-    return sharedPreferences.getString(key, default) ?: default
+  fun getRegionName( default: String = ""): String {
+    return sharedPreferences.getString(REGION_NAME_KEY, default) ?: default
   }
 
-  fun saveIsNewSession(key: String, value: Boolean) {
-    sharedPreferences.edit().putBoolean(key, value).apply()
+  fun saveIsVpnConnected( value: Boolean) {
+    sharedPreferences.edit().putBoolean(VPN_CONNECTED_KEY, value).apply()
   }
 
-  fun getIsNewSession(key: String, default: Boolean = false): Boolean {
-    return sharedPreferences.getBoolean(key, default)
+  fun getIsVpnConnected( default: Boolean = false): Boolean {
+    return sharedPreferences.getBoolean(VPN_CONNECTED_KEY, default)
+  }
+
+  fun saveIsNewSession( value: Boolean) {
+    sharedPreferences.edit().putBoolean(NEW_SESSION_KEY, value).apply()
+  }
+
+  fun getIsNewSession( default: Boolean = false): Boolean {
+    return sharedPreferences.getBoolean(NEW_SESSION_KEY, default)
   }
 
   fun clear() {

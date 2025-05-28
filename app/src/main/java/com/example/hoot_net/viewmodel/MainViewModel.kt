@@ -10,6 +10,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.hoot_net.BuildConfig
 import com.example.hoot_net.WgTunnel
 import com.example.hoot_net.data.RegionManager
+import com.example.hoot_net.data.getRegions
+import com.example.hoot_net.data.local.SharedPreferenceHelper
 import com.example.hoot_net.data.remote.WGConfig
 import com.example.hoot_net.util.HootResponse
 import com.wireguard.android.backend.Backend
@@ -40,12 +42,13 @@ enum class Status {
 
 data class UIState(
   var status: Status = Status.DISCONNECTED,
-  val selecetdRegion: String? = null,
+  var selecetdRegion: String? = null,
 )
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-  private val regionManager: RegionManager
+  private val regionManager: RegionManager,
+  private val sharedPreferenceHelper: SharedPreferenceHelper
 ) : ViewModel() {
 
 
@@ -58,14 +61,52 @@ class MainViewModel @Inject constructor(
     }
   }
 
-  fun connect(regionName: String, baseUrl: String, backend: Backend, tunnel: WgTunnel) {
+  fun setUp() {
+    if (sharedPreferenceHelper.getIsVpnConnected()) {
+      if (sharedPreferenceHelper.getIsNewSession()) {
+        _state.update {
+          it.copy(
+            status = Status.CONNECTED,
+            selecetdRegion = sharedPreferenceHelper.getRegionName()
+          )
+        }
+      }
+    }
+  }
+
+  fun discnnect(backend: Backend, tunnel: WgTunnel) {
+    viewModelScope.launch(Dispatchers.IO) {
+    if (_state.value.status == Status.CONNECTED) {
+      Log.d("hoot-net", "connected ####")
+      if (sharedPreferenceHelper.getIsNewSession()) {
+        Log.d("hoot-net", "new sesssion ####")
+
+        val defaultRegion = getRegions()[0]
+        connect(defaultRegion.name, defaultRegion.baseUrl, backend, tunnel)
+        backend.setState(tunnel, Tunnel.State.DOWN, null)
+      } else {
+        Log.d("hoot-net", "old sesssion ####")
+
+        backend.setState(tunnel, Tunnel.State.DOWN, null)
+      }
+      sharedPreferenceHelper.saveIsVpnConnected(false)
+      _state.update {
+        it.copy(status = Status.DISCONNECTED)
+      }
+      Log.d("hoot-net", "Disconnectinggg ## ####")
+
+    }
+    }
+  }
+
+ suspend fun connect(regionName: String, baseUrl: String, backend: Backend, tunnel: WgTunnel) {
 
     if (_state.value.status != Status.CONNECTED)
       _state.update {
         it.copy(status = Status.CONNECTING)
       }
 
-    viewModelScope.launch(Dispatchers.IO) {
+
 
       val res = regionManager.getClientConfig(regionName = regionName, baseUrl = baseUrl)
       when (res) {
@@ -78,7 +119,12 @@ class MainViewModel @Inject constructor(
           Log.d("hoot-net", "Success")
 
           if (res.data != null) {
-            connectWireguard(backend = backend, tunnel = tunnel, wgConfig = res.data)
+            connectWireguard(
+              backend = backend,
+              tunnel = tunnel,
+              wgConfig = res.data,
+              regionName = regionName
+            )
           } else {
             _state.update {
               it.copy(status = Status.DISCONNECTED)
@@ -86,17 +132,16 @@ class MainViewModel @Inject constructor(
 
           }
         }
-      }
     }
 
   }
 
-  fun connectWireguard(backend: Backend, tunnel: WgTunnel, wgConfig: WGConfig) {
+ suspend fun connectWireguard(backend: Backend, tunnel: WgTunnel, wgConfig: WGConfig, regionName: String) {
     val interfaceBuilder = Interface.Builder()
     val peerBuilder = Peer.Builder()
     Log.d("hoot-net", wgConfig.toString())
 
-    viewModelScope.launch(Dispatchers.IO) {
+
       repeat(5) { attempt ->
         try {
           if (backend.getState(tunnel) == Tunnel.State.UP) {
@@ -130,6 +175,9 @@ class MainViewModel @Inject constructor(
                 )
                 .build()
             )
+            sharedPreferenceHelper.saveIsVpnConnected(true)
+            sharedPreferenceHelper.saveRegionName(regionName)
+            sharedPreferenceHelper.saveIsNewSession(false)
             withContext(Dispatchers.Main) {
               _state.update {
                 it.copy(status = Status.CONNECTED)
@@ -137,7 +185,7 @@ class MainViewModel @Inject constructor(
             }
           }
 
-          return@launch
+          return
 
         } catch (e: BackendException) {
           Log.d("hoot-net", "Error: ${e.reason}")
@@ -151,7 +199,7 @@ class MainViewModel @Inject constructor(
       }
 
       Log.e("hoot-net", "Failed to start VPN after 5 attempts")
-    }
+
   }
 
   fun getSelectedRegionDetails() {

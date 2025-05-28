@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,18 +26,30 @@ import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.example.hoot_net.R
+import com.example.hoot_net.data.local.SharedPreferenceHelper
 import com.example.hoot_net.ui.theme.cherryBomb
+import javax.inject.Inject
 
-@Preview
+
 @Composable
-fun SplashScreen() {
+fun SplashScreen( sharedPreferenceHelper: SharedPreferenceHelper) {
+
+
+
+  LaunchedEffect(Unit) {
+
+    sharedPreferenceHelper.saveIsNewSession(true)
+  }
+
   val composition by rememberLottieComposition(
     LottieCompositionSpec.Asset("loading.json")
   )
 
-  Box(modifier = Modifier
-    .fillMaxSize()
-    .background(Color.White)) {
+  Box(
+    modifier = Modifier
+      .fillMaxSize()
+      .background(Color.White)
+  ) {
     Image(
       modifier = Modifier
         .align(Alignment.Center)
@@ -44,9 +57,12 @@ fun SplashScreen() {
       painter = painterResource(R.drawable.logo), contentDescription = ""
     )
 
-    Row( modifier = Modifier
-      .align(Alignment.BottomCenter).padding(vertical = 20.dp),
-      verticalAlignment = Alignment.CenterVertically) {
+    Row(
+      modifier = Modifier
+        .align(Alignment.BottomCenter)
+        .padding(vertical = 20.dp),
+      verticalAlignment = Alignment.CenterVertically
+    ) {
       val gradient = Brush.linearGradient(
         colors = listOf(Color.Blue, Color.Red, Color.Green)
       )
@@ -57,9 +73,10 @@ fun SplashScreen() {
           brush = gradient,
           fontFamily = FontFamily(fonts = listOf(cherryBomb)),
           fontSize = 16.sp
-        ))
-          LottieAnimation(
-          composition,
+        )
+      )
+      LottieAnimation(
+        composition,
         iterations = LottieConstants.IterateForever,
         modifier = Modifier.size(40.dp)
       )

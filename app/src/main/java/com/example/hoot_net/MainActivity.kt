@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import com.example.hoot_net.data.RegionManager
+import com.example.hoot_net.data.local.SharedPreferenceHelper
 import com.example.hoot_net.data.remote.ApiClient
 import com.example.hoot_net.data.remote.VPNApiService
 import com.example.hoot_net.screens.MainScreen
@@ -52,6 +53,9 @@ class MainActivity : ComponentActivity() {
   @Inject
   lateinit var regionManager: RegionManager
 
+  @Inject
+  lateinit var sharedPreferenceHelper: SharedPreferenceHelper
+
   val backend = GoBackend(this)
 
   lateinit var tunnel: WgTunnel
@@ -68,7 +72,7 @@ class MainActivity : ComponentActivity() {
       HootnetTheme {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
 //          ConnectButton(modifier = Modifier.padding(innerPadding))
-          SplashScreen()
+          SplashScreen(sharedPreferenceHelper)
           MainScreen(modifier = Modifier.padding(innerPadding),backend=backend,tunnel=tunnel)
         }
       }

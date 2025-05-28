@@ -88,6 +88,8 @@ import com.example.hoot_net.viewmodel.MainViewModel
 import com.example.hoot_net.viewmodel.Status
 import com.wireguard.android.backend.Backend
 import com.wireguard.android.backend.GoBackend.VpnService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 val grayscaleColors = listOf(
   Color.Gray,
@@ -109,6 +111,8 @@ fun MainScreen(
   backend: Backend,
   tunnel: WgTunnel
 ) {
+
+
   val scope = rememberCoroutineScope()
 
   Log.d("hoot-net", "composition check ")
@@ -127,18 +131,26 @@ fun MainScreen(
     mutableStateOf<Region?>(null)
   }
 
+  LaunchedEffect(Unit) {
+    viewmodel.setUp()
+
+  }
+
   val context = LocalContext.current
 
   val vpnPermissionLauncher = rememberLauncherForActivityResult(
     contract = ActivityResultContracts.StartActivityForResult()
   ) { result ->
     if (result.resultCode == Activity.RESULT_OK) {
-      viewmodel.connect(
-        regionName = selectedRegion!!.name,
-        backend = backend,
-        baseUrl = selectedRegion!!.baseUrl,
-        tunnel = tunnel
-      )
+      scope.launch(Dispatchers.IO) {
+        viewmodel.connect(
+          regionName = selectedRegion!!.name,
+          backend = backend,
+          baseUrl = selectedRegion!!.baseUrl,
+          tunnel = tunnel
+        )
+      }
+
     }
   }
 
@@ -174,6 +186,10 @@ fun MainScreen(
     mutableStateOf(false)
   }
 
+  var showSelectRegionDialog by remember {
+    mutableStateOf(false)
+  }
+
   LaunchedEffect(uiState.selecetdRegion) {
     selectedRegion = getRegions().find {
       it.name == uiState.selecetdRegion
@@ -184,9 +200,18 @@ fun MainScreen(
   if (showDisconnectDialog) {
     CustomDialog(isDiconnectDialog = true, positiveClick = {
       // Disconnnect
+      Log.d("hoot-net", "close ###")
+      showDisconnectDialog = false
 
+      viewmodel.discnnect(backend, tunnel)
     }) {
       showDisconnectDialog = false
+    }
+  }
+
+  if (showSelectRegionDialog) {
+    CustomDialog(isDiconnectDialog = false, positiveClick = { showSelectRegionDialog = false }) {
+      showSelectRegionDialog = false
     }
   }
 
@@ -254,18 +279,26 @@ fun MainScreen(
           onClick = {
             if (uiState.status == Status.CONNECTED) {
               showDisconnectDialog = true
+
             } else {
               if (selectedRegion != null) {
+                Log.d("hoot-net", "Region is noy null")
                 if (intentPrepare != null) {
                   vpnPermissionLauncher.launch(intentPrepare)
                 } else {
-                  viewmodel.connect(
-                    selectedRegion!!.name,
-                    selectedRegion!!.baseUrl,
-                    backend = backend,
-                    tunnel = tunnel
-                  )
+                  scope.launch(Dispatchers.IO) {
+                    viewmodel.connect(
+                      selectedRegion!!.name,
+                      selectedRegion!!.baseUrl,
+                      backend = backend,
+                      tunnel = tunnel
+                    )
+                  }
                 }
+              } else {
+                Log.d("hoot-net", "Region is  null")
+                showSelectRegionDialog = true
+
               }
             }
           },
@@ -666,7 +699,6 @@ fun CustomDialog(
 
 
   Dialog(onDismissRequest = {
-    dismiss()
   }) {
     Box(
     ) {
@@ -703,80 +735,26 @@ fun CustomDialog(
         )
       }
 
-
-      if (isDiconnectDialog)
-        Box(
-          modifier = Modifier
-            .width(90.dp)
-            .height(100.dp)
-            .pointerInteropFilter {
-              when (it.action) {
-
-                android.view.MotionEvent.ACTION_DOWN -> {
-                  isPressed2 = true
-                  true
-                }
-
-                android.view.MotionEvent.ACTION_UP -> {
-                  isPressed2 = false
-                  dismiss()
-                  true
-                }
-
-                android.view.MotionEvent.ACTION_CANCEL -> {
-                  isPressed2 = false
-                  true
-
-                }
-
-                else -> false
-              }
-            }
-            .graphicsLayer {
-              scaleX = scale2
-              scaleY = scale2
-            }
-
-            .offset(x = -20.dp, y = 29.dp)
-            .clip(shape = CircleShape)
-            .background(Color.Blue.darken(4f))
-            .align(Alignment.BottomEnd)
-
-
-        ) {
-          Text(
-            text = "No", modifier = Modifier
-              .align(Alignment.BottomCenter)
-              .offset(y = -10.dp)
-              .zIndex(6f),
-            style = TextStyle.Default.copy(color = Color.White, fontWeight = FontWeight.Bold)
-
-          )
-        }
-
       Box(
         modifier = Modifier
           .width(90.dp)
           .height(100.dp)
-          .graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-          }
           .pointerInteropFilter {
             when (it.action) {
+
               android.view.MotionEvent.ACTION_DOWN -> {
-                isPressed = true
+                isPressed2 = true
                 true
               }
 
               android.view.MotionEvent.ACTION_UP -> {
-                isPressed = false
-                positiveClick()
+                isPressed2 = false
+                dismiss()
                 true
               }
 
               android.view.MotionEvent.ACTION_CANCEL -> {
-                isPressed = false
+                isPressed2 = false
                 true
 
               }
@@ -784,15 +762,20 @@ fun CustomDialog(
               else -> false
             }
           }
-          .offset(x = 20.dp, y = 29.dp)
+          .graphicsLayer {
+            scaleX = scale2
+            scaleY = scale2
+          }
+
+          .offset(x = -20.dp, y = 29.dp)
           .clip(shape = CircleShape)
-          .background(Color.DarkGray.darken(1f))
-          .align(Alignment.BottomStart)
+          .background(Color.Blue.darken(4f))
+          .align(Alignment.BottomEnd)
 
 
       ) {
         Text(
-          text = if (isDiconnectDialog) "Yes" else "Ok", modifier = Modifier
+          text = if (isDiconnectDialog) "No" else "Ok", modifier = Modifier
             .align(Alignment.BottomCenter)
             .offset(y = -10.dp)
             .zIndex(6f),
@@ -800,6 +783,55 @@ fun CustomDialog(
 
         )
       }
+
+      if (isDiconnectDialog)
+        Box(
+          modifier = Modifier
+            .width(90.dp)
+            .height(100.dp)
+            .graphicsLayer {
+              scaleX = scale
+              scaleY = scale
+            }
+            .pointerInteropFilter {
+              when (it.action) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                  isPressed = true
+                  true
+                }
+
+                android.view.MotionEvent.ACTION_UP -> {
+                  isPressed = false
+                  Log.d("hoot-net", "Actiob upp###")
+                  positiveClick()
+                  true
+                }
+
+                android.view.MotionEvent.ACTION_CANCEL -> {
+                  isPressed = false
+                  true
+
+                }
+
+                else -> false
+              }
+            }
+            .offset(x = 20.dp, y = 29.dp)
+            .clip(shape = CircleShape)
+            .background(Color.DarkGray.darken(1f))
+            .align(Alignment.BottomStart)
+
+
+        ) {
+          Text(
+            text = "Yes", modifier = Modifier
+              .align(Alignment.BottomCenter)
+              .offset(y = -10.dp)
+              .zIndex(6f),
+            style = TextStyle.Default.copy(color = Color.White, fontWeight = FontWeight.Bold)
+
+          )
+        }
     }
 
   }
