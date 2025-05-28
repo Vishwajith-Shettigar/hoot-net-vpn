@@ -161,7 +161,7 @@ class MainViewModel @Inject constructor(
               tunnel, Tunnel.State.UP, Config.Builder()
                 .setInterface(
                   interfaceBuilder
-                    .addAddress(InetNetwork.parse("10.200.200.2/24"))
+                    .addAddress(InetNetwork.parse(wgConfig.`interface`.address))
                     .parsePrivateKey(wgConfig.`interface`.privateKey)
                     .build()
                 )
