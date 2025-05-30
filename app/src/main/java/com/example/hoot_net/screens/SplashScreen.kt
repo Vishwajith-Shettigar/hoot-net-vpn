@@ -3,6 +3,7 @@ package com.example.hoot_net.screens
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -36,7 +37,7 @@ import kotlinx.coroutines.launch
 
 
 @Composable
-fun SplashScreen(sharedPreferenceHelper: SharedPreferenceHelper, navigate: () -> Unit) {
+fun SplashScreen(paddingValues: PaddingValues,sharedPreferenceHelper: SharedPreferenceHelper, navigate: () -> Unit) {
 
   val scope = rememberCoroutineScope()
 
@@ -57,7 +58,7 @@ fun SplashScreen(sharedPreferenceHelper: SharedPreferenceHelper, navigate: () ->
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(Color.White)
+      .background(Color.White).padding(bottom = paddingValues.calculateBottomPadding())
   ) {
     Image(
       modifier = Modifier

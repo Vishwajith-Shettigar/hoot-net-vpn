@@ -4,6 +4,7 @@ import android.app.Activity
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -18,6 +19,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,7 +34,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -51,7 +52,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -67,8 +67,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -83,6 +81,7 @@ import com.example.hoot_net.R
 import com.example.hoot_net.WgTunnel
 import com.example.hoot_net.data.Region
 import com.example.hoot_net.data.getRegions
+import com.example.hoot_net.ui.theme._7C99D9
 import com.example.hoot_net.ui.theme.cherryBomb
 import com.example.hoot_net.viewmodel.MainViewModel
 import com.example.hoot_net.viewmodel.Status
@@ -106,16 +105,11 @@ val rgbColors = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-  modifier: Modifier,
+  paddingValues: PaddingValues,
   viewmodel: MainViewModel = hiltViewModel(),
   backend: Backend,
   tunnel: WgTunnel
 ) {
-
-
-  val scope = rememberCoroutineScope()
-
-  Log.d("hoot-net", "composition check ")
 
   val uiState by viewmodel.state.collectAsState()
 
@@ -142,14 +136,13 @@ fun MainScreen(
     contract = ActivityResultContracts.StartActivityForResult()
   ) { result ->
     if (result.resultCode == Activity.RESULT_OK) {
-      scope.launch(Dispatchers.IO) {
-        viewmodel.connect(
-          regionName = selectedRegion!!.name,
-          backend = backend,
-          baseUrl = selectedRegion!!.baseUrl,
-          tunnel = tunnel
-        )
-      }
+
+      viewmodel.startConnection(
+        regionName = selectedRegion!!.name,
+        backend = backend,
+        baseUrl = selectedRegion!!.baseUrl,
+        tunnel = tunnel
+      )
 
     }
   }
@@ -157,25 +150,18 @@ fun MainScreen(
   val intentPrepare = VpnService.prepare(context)
 
   LaunchedEffect(uiState.status) {
-    Log.d("hoot-net", "status")
     when (uiState.status) {
       Status.CONNECTED -> {
-        Log.d("hoot-net", " Connected ------------")
-
         waveColors = rgbColors
         ringColors = rgbColors
       }
 
       Status.DISCONNECTED -> {
-        Log.d("hoot-net", " Dusconnected ------------")
-
         waveColors = grayscaleColors
         ringColors = grayscaleColors
       }
 
       Status.CONNECTING -> {
-        Log.d("hoot-net", " Connectingggggg ------------")
-
         waveColors = rgbColors
         ringColors = grayscaleColors
       }
@@ -197,10 +183,9 @@ fun MainScreen(
   }
 
 
-  if (showDisconnectDialog) {
+  AnimatedVisibility(showDisconnectDialog) {
     CustomDialog(isDiconnectDialog = true, positiveClick = {
       // Disconnnect
-      Log.d("hoot-net", "close ###")
       showDisconnectDialog = false
 
       viewmodel.discnnect(backend, tunnel)
@@ -209,7 +194,7 @@ fun MainScreen(
     }
   }
 
-  if (showSelectRegionDialog) {
+  AnimatedVisibility(showSelectRegionDialog) {
     CustomDialog(isDiconnectDialog = false, positiveClick = { showSelectRegionDialog = false }) {
       showSelectRegionDialog = false
     }
@@ -221,17 +206,22 @@ fun MainScreen(
       skipHiddenState = true
     )
   )
+
   BottomSheetScaffold(
     scaffoldState = bottomSheetState, sheetPeekHeight = 150.dp,
-    sheetContainerColor = Color.Blue.copy(0.4f), sheetContent = {
-      LazyColumn {
-        items(getRegions().size) {
-          RegionCard(getRegions()[it], uiState.selecetdRegion == getRegions()[it].name) {
-            viewmodel.updateSelectedRegion(getRegions()[it].name)
+    sheetContainerColor = _7C99D9, sheetContent = {
+      Box(modifier = Modifier.padding(bottom = paddingValues.calculateBottomPadding()))
+      {
+        LazyColumn {
+          items(getRegions().size) {
+            RegionCard(getRegions()[it], uiState.selecetdRegion == getRegions()[it].name) {
+              viewmodel.updateSelectedRegion(getRegions()[it].name)
+            }
+            Spacer(modifier = Modifier.height(10.dp))
           }
-          Spacer(modifier = Modifier.height(10.dp))
         }
       }
+
     },
     sheetShape = RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp)
   ) {
@@ -282,21 +272,19 @@ fun MainScreen(
 
             } else {
               if (selectedRegion != null) {
-                Log.d("hoot-net", "Region is noy null")
+                Log.d("hoot-net", "Region is not null")
                 if (intentPrepare != null) {
                   vpnPermissionLauncher.launch(intentPrepare)
                 } else {
-                  scope.launch(Dispatchers.IO) {
-                    viewmodel.connect(
-                      selectedRegion!!.name,
-                      selectedRegion!!.baseUrl,
-                      backend = backend,
-                      tunnel = tunnel
-                    )
-                  }
+                  viewmodel.startConnection(
+                    selectedRegion!!.name,
+                    selectedRegion!!.baseUrl,
+                    backend = backend,
+                    tunnel = tunnel
+                  )
                 }
               } else {
-                Log.d("hoot-net", "Region is  null")
+                Log.d("hoot-net", "Region is null")
                 showSelectRegionDialog = true
 
               }
@@ -802,7 +790,6 @@ fun CustomDialog(
 
                 android.view.MotionEvent.ACTION_UP -> {
                   isPressed = false
-                  Log.d("hoot-net", "Actiob upp###")
                   positiveClick()
                   true
                 }

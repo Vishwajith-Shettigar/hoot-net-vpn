@@ -91,13 +91,17 @@ class MainActivity : ComponentActivity() {
             startDestination = SplashScreen
           ) {
             composable<SplashScreen> {
-              SplashScreen(sharedPreferenceHelper) {
-                navController.navigate(HomeScreen)
+              SplashScreen(innerPadding,sharedPreferenceHelper) {
+                navController.navigate(HomeScreen){
+                  popUpTo<SplashScreen>(){
+                    inclusive=true
+                  }
+                }
               }
             }
             composable<HomeScreen> {
               MainScreen(
-                modifier = Modifier.padding(innerPadding),
+                paddingValues = innerPadding,
                 backend = backend,
                 tunnel = tunnel
               )

@@ -10,8 +10,6 @@ import com.example.hoot_net.data.remote.WGPeer
 import com.example.hoot_net.util.HootResponse
 import javax.inject.Inject
 import javax.inject.Singleton
-import retrofit2.Response
-import retrofit2.awaitResponse
 
 @Singleton
 class RegionManager @Inject constructor(
@@ -21,10 +19,8 @@ class RegionManager @Inject constructor(
   suspend fun getClientConfig(regionName: String, baseUrl: String): HootResponse<WGConfig?> {
     return try {
       val localConfig = vpnConfigDao.getConfig(regionName)
-      Log.d("hoot-net", "yoyo")
 
       if (localConfig != null) {
-        Log.d("hoot-net", localConfig.toString())
         // Convert DB entity to WGConfig
         return HootResponse.Success(convertEntityToWGConfig(localConfig))
 
@@ -33,8 +29,6 @@ class RegionManager @Inject constructor(
 
       val client = apiClient.getClient(baseUrl)
       val remoteConfigResponse = client.getNewClientConfig()
-      Log.d("hoot-net", remoteConfigResponse.body().toString())
-      Log.d("hoot-net", remoteConfigResponse.isSuccessful.toString())
 
       if (remoteConfigResponse.isSuccessful && remoteConfigResponse.body() != null) {
         val vPNConfigEntity = convertWGConfigToEntity(remoteConfigResponse.body()!!, regionName)
@@ -88,5 +82,4 @@ class RegionManager @Inject constructor(
       peer = entityPeer
     )
   }
-
 }
