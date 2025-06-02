@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.test.isDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
@@ -52,6 +53,7 @@ class ExampleInstrumentedTest {
       SplashScreen(PaddingValues(10.dp), sharedPreferenceHelper) {}
     }
     composeTestRule.onNodeWithText("れっど ふらっぐ").isDisplayed()
+    composeTestRule.onNodeWithTag("lottie").isDisplayed()
   }
 
   @Test

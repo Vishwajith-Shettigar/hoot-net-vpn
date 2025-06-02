@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -88,7 +89,7 @@ fun SplashScreen(paddingValues: PaddingValues,sharedPreferenceHelper: SharedPref
       LottieAnimation(
         composition,
         iterations = LottieConstants.IterateForever,
-        modifier = Modifier.size(40.dp)
+        modifier = Modifier.size(40.dp).testTag("lottie")
       )
     }
   }
